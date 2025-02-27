@@ -8,8 +8,8 @@ export default function EstudianteDashboard() {
     const [codigoCurso, setCodigoCurso] = useState("");
     const [cursoSeleccionado, setCursoSeleccionado] = useState(null);
     const [juegos, setJuegos] = useState([]);
-    const estudianteId = "b13ad2aa-17c1-4a12-bdf4-69b5525567c1"; // TODO: Reemplazar con ID real del estudiante autenticado
-
+    //const estudianteId = "b13ad2aa-17c1-4a12-bdf4-69b5525567c1"; // TODO: Reemplazar con ID real del estudiante autenticado
+    const estudianteId = "907581a8-65c5-4deb-a3b5-4e68093806fb";
     // Cargar los cursos en los que está inscrito el estudiante
     useEffect(() => {
         fetch(`${API_URL}/student-courses/student/${estudianteId}`)
@@ -85,16 +85,18 @@ export default function EstudianteDashboard() {
                         {cursos.map(curso => (
                             <li key={curso.id}>
                                 <button onClick={() => cargarJuegosDelCurso(curso.curso.id)}>
-                                    {curso.nombre} - Código: {curso.codigo}
+                                    {curso.curso.nombre} - Código: {curso.curso.codigo}
                                 </button>
                                 {/* Mostrar juegos si el curso está seleccionado */}
-                                {cursoSeleccionado === curso.id && (
+                                {cursoSeleccionado === curso.curso.id && (
                                     <ul>
                                         {juegos.length === 0 ? (
                                             <p>No hay juegos asignados.</p>
                                         ) : (
-                                            juegos.map(juego => (
-                                                <li key={juego.id}>{juego.nombre}</li>
+                                            juegos.map(juegosAsignado => (
+                                                <li key={juegosAsignado.juego.id}>
+                                                    {juegosAsignado.juego.nombre}: {juegosAsignado.juego.descripcion}
+                                                </li>
                                             ))
                                         )}
                                     </ul>

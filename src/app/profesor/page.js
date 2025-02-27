@@ -7,24 +7,29 @@ export default function ProfesorDashboard() {
     const [cursos, setCursos] = useState([]);
     const [nombreCurso, setNombreCurso] = useState("");
     const [juegos, setJuegos] = useState([]);
+    const [juegosAsignados, setJuegosAsignados] = useState([]);
     const [cursoSeleccionado, setCursoSeleccionado] = useState(null);
     const [juegoSeleccionado, setJuegoSeleccionado] = useState(null);
+    const [estudiantes, setEstudiantes] = useState([]);
+    const [verEstudiantes, setVerEstudiantes] = useState(false);
     const profesorId = "7ba7e984-a0fd-4360-90e9-aa486db31396"; // TODO: Reemplazar con ID real del profesor autenticado
 
     useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/profesor/${profesorId}`)
+        if (!API_URL) return;
+        
+        fetch(`${API_URL}/courses/profesor/${profesorId}`)
             .then(res => res.json())
             .then(data => setCursos(data))
             .catch(error => console.error("Error al cargar cursos:", error));
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/games`)
+        fetch(`${API_URL}/games`)
             .then(res => res.json())
             .then(data => setJuegos(data))
             .catch(error => console.error("Error al cargar juegos:", error));
-    }, []);
+    }, [API_URL]);
 
     const crearCurso = async () => {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/create/${profesorId}`, {
+        const response = await fetch(`${API_URL}/courses/create/${profesorId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nombre: nombreCurso })
@@ -36,70 +41,123 @@ export default function ProfesorDashboard() {
         }
     };
 
-    const asignarJuego = async () => {
-      if (!cursoSeleccionado || !juegoSeleccionado) return;
-  
-      try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assigned-games`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  profesorId,
-                  courseId: cursoSeleccionado,
-                  gameId: juegoSeleccionado
-              })
-          });
-  
-          if (!response.ok) {
-              throw new Error(`Error ${response.status}: ${await response.text()}`);
-          }
-  
-          const data = await response.json();
-          console.log("Juego asignado:", data);
-      } catch (error) {
-          console.error("Error al asignar juego:", error);
-      }
-  };
-  
+    const eliminarCurso = async (cursoId) => {
+        if (!confirm("¿Estás seguro de que quieres eliminar este curso? Esta acción no se puede deshacer.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/courses/${cursoId}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${await response.text()}`);
+            }
+
+            setCursos((prevCursos) => prevCursos.filter(curso => curso.id !== cursoId));
+
+            alert("Curso eliminado correctamente.");
+        } catch (error) {
+            console.error("Error al eliminar el curso:", error);
+        }
+    };
+
+    const cargarEstudiantes = async (cursoId) => {
+        if (!cursoId) return;
+        try {
+            const response = await fetch(`${API_URL}/student-courses/course/${cursoId}`);
+            if (!response.ok) throw new Error("Error al cargar estudiantes");
+
+            const data = await response.json();
+            const listaEstudiantes = data.map(item => item.estudiante);
+            setEstudiantes(listaEstudiantes);
+            setVerEstudiantes(true);
+        } catch (error) {
+            console.error("Error al cargar estudiantes:", error);
+        }
+    };
+
+    const cargarJuegosAsignados = async (cursoId) => {
+        if (!cursoId) return;
+        try {
+            const response = await fetch(`${API_URL}/assigned-games/course/${cursoId}`);
+            if (!response.ok) throw new Error("Error al cargar juegos asignados");
+            
+            const data = await response.json();
+            setJuegosAsignados(data);
+        } catch (error) {
+            console.error("Error al cargar juegos asignados:", error);
+        }
+    };
+
+    const desasignarJuego = async (cursoId, gameId) => {
+        if (!cursoId || !gameId) return;
+        try {
+            const response = await fetch(`${API_URL}/assigned-games/${cursoId}/${gameId}`, {
+                method: "DELETE",
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${await response.text()}`);
+            }
+            
+            setJuegosAsignados((prevJuegos) => prevJuegos.filter(item => item.juego.id !== gameId));
+            alert("Juego desasignado correctamente");
+        } catch (error) {
+            console.error("Error al desasignar juego:", error);
+        }
+    };
 
     return (
         <div>
             <h1>Dashboard del Profesor</h1>
-            
-            {/* Crear Curso */}
             <div>
                 <h2>Crear Curso</h2>
                 <input type="text" value={nombreCurso} onChange={(e) => setNombreCurso(e.target.value)} placeholder="Nombre del curso" />
                 <button onClick={crearCurso}>Crear</button>
             </div>
-            
-            {/* Lista de Cursos */}
+            <br/>
             <div>
-                <h2>Mis Cursos</h2>
+                <h2>Mis Cursos:</h2>
                 <ul>
                     {cursos.map(curso => (
-                        <li key={curso.id}>{curso.nombre} - Código: {curso.codigo}</li>
+                        <li key={curso.id}>
+                            {curso.nombre} - Código: {curso.codigo}
+                            <br/>
+                            <button onClick={() => eliminarCurso(curso.id)} style={{ marginRight: "10px", color: "red" }}>Eliminar Curso</button>
+                            <button onClick={() => {setCursoSeleccionado(curso.id); cargarEstudiantes(curso.id); cargarJuegosAsignados(curso.id);}}>Ver Detalles</button>
+                        </li>
                     ))}
                 </ul>
             </div>
-            
-            {/* Asignar Juego a Curso */}
-            <div>
-                <h2>Asignar Juego a Curso</h2>
-                <select onChange={(e) => setCursoSeleccionado(e.target.value)}>
-                    <option value="">Seleccionar Curso</option>
-                    {cursos.map(curso => (
-                        <option key={curso.id} value={curso.id}>{curso.nombre}</option>
-                    ))}
-                </select>
-                <select onChange={(e) => setJuegoSeleccionado(e.target.value)}>
-                    <option value="">Seleccionar Juego</option>
-                    {juegos.map(juego => (
-                        <option key={juego.id} value={juego.id}>{juego.nombre}</option>
-                    ))}
-                </select>
-                <button onClick={asignarJuego}>Asignar</button>
-            </div>
+
+            {verEstudiantes && estudiantes.length > 0 && (
+                <div>
+                    <h2>Estudiantes del Curso</h2>
+                    <ul>
+                        {estudiantes.map(estudiante => (
+                            <li key={estudiante.id}>
+                                {estudiante.nombre} - {estudiante.email}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {juegosAsignados.length > 0 && (
+                <div>
+                    <h2>Juegos Asignados</h2>
+                    <ul>
+                        {juegosAsignados.map(item => (
+                            <li key={item.juego.id}>
+                                {item.juego.nombre}
+                                <button onClick={() => desasignarJuego(cursoSeleccionado, item.juego.id)}>Eliminar</button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }
