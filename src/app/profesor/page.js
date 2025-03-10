@@ -152,7 +152,7 @@ export default function ProfesorDashboard() {
                         {juegosAsignados.map(item => (
                             <li key={item.juego.id}>
                                 {item.juego.nombre}
-                                <button onClick={() => desasignarJuego(cursoSeleccionado, item.juego.id)}>Eliminar</button>
+                                <button onClick={() => desasignarJuego(cursoSeleccionado, item.juego.id)}> -Eliminar</button>
                             </li>
                         ))}
                     </ul>
