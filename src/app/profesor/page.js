@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Accordion, Button, Card } from "react-bootstrap"; // Importamos los componentes de Bootstrap
+import { Checkbox } from 'primereact/checkbox';
 import Navbarprofesor from "../components/navbar-profesor";
 
 export default function ProfesorDashboard() {
@@ -154,6 +155,24 @@ export default function ProfesorDashboard() {
         }
     };
 
+    const toggleProgresivo = async (cursoId, nuevoEstado) => {
+        try {
+            const response = await fetch(`${API_URL}/courses/${cursoId}/progresivo?progresivo=${nuevoEstado}`, {
+                method: "PATCH",
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${await response.text()}`);
+            }
+    
+            setCursos(prevCursos => prevCursos.map(curso => 
+                curso.id === cursoId ? { ...curso, progresivo: nuevoEstado } : curso
+            ));
+        } catch (error) {
+            console.error("Error al actualizar el estado progresivo:", error);
+        }
+    };    
+
     return (
         <div>
             <Navbarprofesor></Navbarprofesor>    
@@ -210,10 +229,21 @@ export default function ProfesorDashboard() {
                                                     cargarJuegosAsignados(curso.id);
                                                 }}
                                             >
-                                                Ver Detalles
+                                                Cargar Datos
                                             </button>
                                         </div>
-                                        
+                                        <div className="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <Checkbox 
+                                                inputId={`progresivo-${curso.id}`} 
+                                                checked={curso.progresivo} 
+                                                onChange={(e) => toggleProgresivo(curso.id, e.checked)}
+                                            />
+                                            <label htmlFor={`progresivo-${curso.id}`} className="ms-2">
+                                                Curso Progresivo
+                                            </label>
+                                        </div>
+                                    </div>
                                         {verEstudiantes && estudiantes.length > 0 && (
                                             <div>
                                                 <h2>Estudiantes del Curso</h2>
