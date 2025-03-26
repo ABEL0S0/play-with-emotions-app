@@ -96,46 +96,54 @@ export default function ProfesorDashboard() {
 
     const asignarJuego = async () => {
         if (!cursoSeleccionado || !juegoSeleccionado) return;
-
+    
         try {
-            // 1. Comprobar si el juego ya está asignado al curso
-            const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assigned-games/course/${cursoSeleccionado}`);
-
+            // 1. Obtener los juegos ya asignados al curso
+            const checkResponse = await fetch(`${API_URL}/assigned-games/course/${cursoSeleccionado}`);
+    
             if (!checkResponse.ok) {
                 throw new Error(`Error ${checkResponse.status}: ${await checkResponse.text()}`);
             }
-
+    
             const juegosAsignados = await checkResponse.json();
-
-            // 2. Verificar si el juego ya está en la lista de juegos asignados
-            const juegoYaAsignado = juegosAsignados.some(juego => juego.gameId === juegoSeleccionado);
-
+    
+            // 2. Verificar si el juego ya está asignado
+            const juegoYaAsignado = juegosAsignados.some(juego => juego.juego.id === juegoSeleccionado);
             if (juegoYaAsignado) {
                 console.warn("El juego ya está asignado a este curso.");
-                return; // Evitamos hacer la solicitud si ya está asignado
+                return;
             }
-
-            // 3. Asignar el juego si no está duplicado
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assigned-games`, {
+    
+            // 3. Determinar el nuevo orden (máximo orden existente + 1, o 0 si es el primero)
+            const nuevoOrden = juegosAsignados.length > 0 
+                ? Math.max(...juegosAsignados.map(j => j.orden)) + 1 
+                : 0;
+    
+            console.log(`Asignando juego con orden: ${nuevoOrden}`);
+    
+            // 4. Asignar el juego con el nuevo orden
+            const response = await fetch(`${API_URL}/assigned-games`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     profesorId,
                     courseId: cursoSeleccionado,
-                    gameId: juegoSeleccionado
+                    gameId: juegoSeleccionado,
+                    orden: nuevoOrden // ✅ Asegurándonos de enviar el orden
                 })
             });
-
+    
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${await response.text()}`);
             }
-
+    
             const data = await response.json();
-            console.log("Juego asignado:", data);
+            console.log(`Juego asignado con orden ${nuevoOrden}:`, data);
         } catch (error) {
             console.error("Error al asignar juego:", error);
         }
     };
+        
 
     const desasignarJuego = async (cursoId, gameId) => {
         if (!cursoId || !gameId) return;
@@ -170,6 +178,28 @@ export default function ProfesorDashboard() {
             ));
         } catch (error) {
             console.error("Error al actualizar el estado progresivo:", error);
+        }
+    };    
+
+    const actualizarOrden = async (assignedGameId, nuevoOrden) => {
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assigned-games/${assignedGameId}/orden?nuevoOrden=${nuevoOrden}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" }
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${await response.text()}`);
+            }
+    
+            // Actualiza la lista de juegos después del cambio
+            setJuegos(prevJuegos =>
+                prevJuegos.map(juego =>
+                    juego.id === assignedGameId ? { ...juego, orden: nuevoOrden } : juego
+                )
+            );
+        } catch (error) {
+            console.error("Error al actualizar el orden:", error);
         }
     };    
 
@@ -260,19 +290,39 @@ export default function ProfesorDashboard() {
                                         {juegosAsignados.length > 0 && (
                                             <div>
                                                 <h2>Juegos Asignados</h2>
-                                                <ul>
+                                                <div className="row">
                                                     {juegosAsignados.map(item => (
-                                                        <li key={item.juego.id}>
-                                                            {item.juego.nombre}
-                                                            <button
-                                                                className="btn btn-danger btn-sm ms-2"
-                                                                onClick={() => desasignarJuego(cursoSeleccionado, item.juego.id)}
-                                                            >
-                                                                Eliminar
-                                                            </button>
-                                                        </li>
+                                                        <div key={item.juego.id} className="col-12 col-md-6 col-lg-4 mb-3">
+                                                            <Card title={item.juego.nombre} className="shadow-sm border p-3">
+                                                            <p><b className="text-gray-600">{item.juego.nombre}</b></p>
+                                                                <p className="text-gray-600">{item.juego.descripcion}</p>
+                                                                <p className="text-sm font-bold mt-2">Dificultad: {item.juego.dificultad}</p>
+
+                                                                <div className="flex items-center gap-2 mt-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={item.orden}
+                                                                        onChange={(e) => actualizarOrden(item.id, parseInt(e.target.value))}
+                                                                        className="border rounded p-1 w-16 text-center"
+                                                                    />
+                                                                    <Button
+                                                                        label="Actualizar Orden"
+                                                                        icon="pi pi-sort"
+                                                                        className="p-button-primary"
+                                                                        onClick={() => actualizarOrden(item.id, item.orden)}
+                                                                    />
+                                                                </div>
+
+                                                                <button
+                                                                    className="btn btn-danger btn-sm ms-2 mt-3"
+                                                                    onClick={() => desasignarJuego(cursoSeleccionado, item.juego.id)}
+                                                                >
+                                                                    Eliminar
+                                                                </button>
+                                                            </Card>
+                                                        </div>
                                                     ))}
-                                                </ul>
+                                                </div>
                                             </div>
                                         )}
 

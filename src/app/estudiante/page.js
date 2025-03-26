@@ -44,7 +44,7 @@ export default function EstudianteDashboard() {
         }
     };
 
-    const cargarJuegosDelCurso = async (cursoId) => {
+    /*const cargarJuegosDelCurso = async (cursoId) => {
         setCursoSeleccionado(cursoId);
 
         try {
@@ -55,8 +55,38 @@ export default function EstudianteDashboard() {
         } catch (error) {
             console.error("Error al obtener juegos asignados:", error);
         }
-    };
+    };*/
 
+    const cargarJuegosDelCurso = async (curso) => {
+        setCursoSeleccionado(curso.curso.id);
+    
+        try {
+            if (curso.curso.progresivo) {
+                // Obtener el siguiente juego en orden
+                const response = await fetch(`${API_URL}/assigned-games/next?estudianteId=${estudianteId}&cursoId=${curso.curso.id}`);
+                
+                if (response.status === 404) {
+                    console.warn("No hay más juegos disponibles en este curso.");
+                    setJuegos([]); // No romper la UI, solo mostrar lista vacía
+                    return;
+                }
+    
+                if (!response.ok) throw new Error(`Error ${response.status}: ${await response.text()}`);
+                
+                const nextGame = await response.json();
+                setJuegos(nextGame ? [nextGame] : []);
+            } else {
+                // Si no es progresivo, obtener todos los juegos
+                const response = await fetch(`${API_URL}/assigned-games/student/${estudianteId}/course/${curso.curso.id}`);
+                if (!response.ok) throw new Error(`Error ${response.status}: ${await response.text()}`);
+    
+                setJuegos(await response.json());
+            }
+        } catch (error) {
+            console.error("Error al obtener juegos asignados:", error);
+        }
+    };
+    
     const cargarJuego = (uuid) => {
         setJuegoSeleccionado(uuid);
     };
@@ -108,7 +138,7 @@ export default function EstudianteDashboard() {
                                                 label="Ver Juegos"
                                                 icon="pi pi-play"
                                                 className="p-button-info w-full"
-                                                onClick={() => cargarJuegosDelCurso(curso.curso.id)}
+                                                onClick={() => cargarJuegosDelCurso(curso)}
                                             />
                                             {cursoSeleccionado === curso.curso.id && juegos.length > 0 && (
                                                 <div className="grid grid-cols-1 gap-3 mt-3">
